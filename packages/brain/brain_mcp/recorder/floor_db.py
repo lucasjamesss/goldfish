@@ -110,18 +110,22 @@ def write_conn(path: Path | None = None):
 
 
 @contextmanager
-def read_conn(path: Path | None = None):
+def read_conn(path: Path | None = None, wait_secs: float = 90.0):
+    """Read-only connect. The `brain-mcp record` daemon holds DuckDB's exclusive
+    write lock for tens of seconds while it refreshes + rebuilds the FTS index,
+    so a short fixed retry loses to it. Retry against a deadline instead."""
     p = str(path or db_path())
-    last = None
-    for attempt in range(6):
+    deadline = time.monotonic() + wait_secs
+    delay = 0.2
+    while True:
         try:
             conn = duckdb.connect(p, read_only=True)
             break
-        except duckdb.IOException as e:
-            last = e
-            time.sleep(0.2 * (attempt + 1))
-    else:
-        raise last
+        except duckdb.IOException:
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(delay)
+            delay = min(delay * 1.6, 3.0)
     try:
         yield conn
     finally:
