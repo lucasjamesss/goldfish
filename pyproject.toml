@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Vibes-lj/goldfish"
+Homepage = "https://github.com/lucasjamesss/goldfish"
 
 [project.scripts]
 goldfish = "goldfish.cli:main"

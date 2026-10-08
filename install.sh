@@ -2,7 +2,7 @@
 # Goldfish one-command installer.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/Vibes-lj/goldfish/master/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/lucasjamesss/goldfish/master/install.sh | bash
 #
 # Idempotent — safe to re-run. Clones/updates goldfish, syncs its Python env,
 # enables brain-mcp's transcript-capture hooks for Claude Code, and registers
@@ -10,7 +10,7 @@
 
 set -euo pipefail
 
-REPO_URL="https://github.com/Vibes-lj/goldfish.git"
+REPO_URL="https://github.com/lucasjamesss/goldfish.git"
 INSTALL_DIR="${GOLDFISH_HOME:-$HOME/.local/share/goldfish}"
 
 echo "== Goldfish installer =="

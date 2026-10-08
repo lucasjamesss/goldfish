@@ -83,7 +83,7 @@ Paste this repo's link to Claude Code and say "use this" — it'll run the
 installer itself. Or run it yourself:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Vibes-lj/goldfish/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/lucasjamesss/goldfish/master/install.sh | bash
 ```
 
 That one command clones goldfish, syncs its Python env, turns on brain-mcp's
@@ -101,7 +101,7 @@ database read-only if you've already installed it yourself; see
 ## Manual setup
 
 ```bash
-git clone https://github.com/Vibes-lj/goldfish.git
+git clone https://github.com/lucasjamesss/goldfish.git
 cd goldfish
 uv sync
 uv run --directory packages/brain brain-mcp install cc   # optional: transcript capture hooks
