@@ -25,6 +25,7 @@ Three different jobs, three different tools, one thing you actually call:
 | Transcript history | `goldfish_search` | "did we ever discuss X" — cited, never hallucinated | [brain-mcp](https://github.com/mordechaipotash/brain-mcp)'s DuckDB + append-only JSONL lake |
 | Session context | `goldfish_context` | "what was I just doing" — recent auto-generated summaries | [claude-mem](https://github.com/thedotmack/claude-mem)'s SQLite store (read-only) |
 | Curated notes | `goldfish_remember` / `goldfish_recall` | "what do we know about this user/project" — small, hand-picked, durable | plain frontmatter markdown, this repo |
+| Chat summaries | `goldfish_save_chat` | "what did we talk about last week" in chat apps that keep no transcripts on disk | same markdown store, `type: chat` |
 | Everything | `goldfish_status` | is each tier actually installed and healthy | aggregates all three |
 
 Goldfish doesn't replace brain-mcp or claude-mem — it vendors them as-is and
@@ -86,10 +87,24 @@ installer itself. Or run it yourself:
 curl -fsSL https://raw.githubusercontent.com/lucasjamesss/goldfish/master/install.sh | bash
 ```
 
-That one command clones goldfish, syncs its Python env, turns on brain-mcp's
-transcript-capture hooks for Claude Code, and registers `goldfish` as an MCP
-server via `claude mcp add` — restart Claude Code (or run `/mcp`) afterward
-and the five tools below are live. Re-running it is safe (idempotent).
+That one command clones goldfish, syncs its Python env, and registers it with
+every Claude client it finds — restart Claude afterward and the tools are live.
+Re-running it is safe (idempotent).
+
+- **Claude Code:** turns on brain-mcp's transcript-capture hooks and runs
+  `claude mcp add`. Full cited history search works.
+- **Claude desktop app (any plan, free included):** merges goldfish into
+  `claude_desktop_config.json` (old file backed up as `.json.bak`). The chat
+  app keeps no transcripts on disk, so memory there is what Claude saves:
+  facts via `goldfish_remember`, conversation summaries via
+  `goldfish_save_chat`, both found again by `goldfish_search`. The installer
+  prints a line to paste into Settings > Profile so Claude does this every chat.
+
+### Handing it to a friend who doesn't code
+
+They need a Mac with the Claude app installed and opened once. Have them open
+Terminal (Cmd+Space, type "Terminal"), paste the command above, press Enter,
+then quit Claude (Cmd+Q) and reopen it. That's it.
 
 Prefer to wire it up by hand instead? See [manual setup](#manual-setup) below.
 

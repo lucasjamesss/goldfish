@@ -5,8 +5,9 @@
 #   curl -fsSL https://raw.githubusercontent.com/lucasjamesss/goldfish/master/install.sh | bash
 #
 # Idempotent — safe to re-run. Clones/updates goldfish, syncs its Python env,
-# enables brain-mcp's transcript-capture hooks for Claude Code, and registers
-# the goldfish MCP server with the `claude` CLI if it's on PATH.
+# then registers goldfish with whichever Claude clients are installed:
+#   - Claude Code: transcript-capture hooks (brain-mcp) + `claude mcp add`
+#   - Claude Desktop (any plan, including free): its claude_desktop_config.json
 
 set -euo pipefail
 
@@ -16,7 +17,9 @@ INSTALL_DIR="${GOLDFISH_HOME:-$HOME/.local/share/goldfish}"
 echo "== Goldfish installer =="
 
 if ! command -v git >/dev/null 2>&1; then
-  echo "git is required — install it and re-run." >&2
+  echo "git is required. A popup may appear asking to install Apple's developer tools —"
+  echo "click Install, wait for it to finish, then run this command again."
+  xcode-select --install >/dev/null 2>&1 || true
   exit 1
 fi
 
@@ -38,30 +41,44 @@ cd "$INSTALL_DIR"
 echo "syncing dependencies..."
 uv sync
 
-echo "enabling transcript capture for Claude Code (brain-mcp)..."
-uv run --directory packages/brain brain-mcp install cc || \
-  echo "  (non-fatal — retry later with: cd $INSTALL_DIR && uv run --directory packages/brain brain-mcp install cc)"
+UV_BIN="$(command -v uv)"
+DESKTOP_DIR="$HOME/Library/Application Support/Claude"
+found_client=0
 
 if command -v claude >/dev/null 2>&1; then
-  echo "registering goldfish as an MCP server (user scope)..."
+  found_client=1
+  echo "Claude Code found — enabling transcript capture (brain-mcp)..."
+  uv run --directory packages/brain brain-mcp install cc || \
+    echo "  (non-fatal — retry later with: cd $INSTALL_DIR && uv run --directory packages/brain brain-mcp install cc)"
+  echo "registering goldfish with Claude Code (user scope)..."
   claude mcp remove goldfish -s user >/dev/null 2>&1 || true
-  claude mcp add goldfish -s user -- uv run --directory "$INSTALL_DIR" goldfish serve
-else
-  cat <<EOF
-claude CLI not found on PATH — add this to your MCP config manually:
-  "goldfish": {
-    "command": "uv",
-    "args": ["run", "--directory", "$INSTALL_DIR", "goldfish", "serve"]
-  }
-EOF
+  claude mcp add goldfish -s user -- "$UV_BIN" run --directory "$INSTALL_DIR" goldfish serve
 fi
 
-cat <<EOF
+# Claude Desktop launches MCP servers without your shell PATH, hence the
+# absolute uv path. Existing config is backed up and merged, never replaced.
+if [ -d "/Applications/Claude.app" ] || [ -d "$HOME/Applications/Claude.app" ] || [ -d "$DESKTOP_DIR" ]; then
+  found_client=1
+  echo "Claude desktop app found — registering goldfish in its config..."
+  mkdir -p "$DESKTOP_DIR"
+  uv run python -m goldfish.desktop_config "$DESKTOP_DIR/claude_desktop_config.json" "$UV_BIN" "$INSTALL_DIR"
+fi
 
-Done. Restart Claude Code (or run /mcp) to pick up the new tools:
-  goldfish_search, goldfish_context, goldfish_remember, goldfish_recall, goldfish_status
+if [ "$found_client" = 0 ]; then
+  echo
+  echo "Couldn't find Claude on this Mac. Install the Claude app from"
+  echo "https://claude.ai/download, open it once, then run this command again."
+  exit 1
+fi
 
-The claude-mem tier (goldfish_context) reads a database that claude-mem's own
-plugin populates — that's a separate install, not run by this script. See
-packages/claude-mem/README.md if you want it too. Everything else works now.
+cat <<'EOF'
+
+Done! Last step: fully quit Claude (Cmd+Q) and open it again.
+
+Recommended for the Claude app: open Settings > Profile and paste this into
+the personal preferences box, so Claude uses its memory in every chat:
+
+  At the start of each chat, check goldfish_recall for what you know about me.
+  Save important facts with goldfish_remember, and before we finish a real
+  conversation, save a summary with goldfish_save_chat.
 EOF

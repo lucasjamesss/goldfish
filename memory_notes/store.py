@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-MEMORY_TYPES = ("user", "feedback", "project", "reference", "insight")
+MEMORY_TYPES = ("user", "feedback", "project", "reference", "insight", "chat")
 
 _FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n?(.*)\Z", re.DOTALL)
 _LINK_RE = re.compile(r"\[\[([a-zA-Z0-9_-]+)\]\]")

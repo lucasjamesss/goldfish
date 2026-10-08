@@ -4,6 +4,8 @@
   goldfish_context   -> claude-mem (recent session-compression summaries)
   goldfish_remember  -> memory_notes (write a curated, durable note)
   goldfish_recall    -> memory_notes (read/search curated notes)
+  goldfish_save_chat -> memory_notes (conversation summary, for chat apps
+                        that keep no transcripts on disk)
   goldfish_reflect   -> brain (raw cited evidence of the user's own recurring
                         language — frustration, habit, drive, goal talk —
                         never a synthesized conclusion; see its docstring)
@@ -18,6 +20,8 @@ know" without deciding up front which tier holds the answer.
 
 from __future__ import annotations
 
+import re
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from mcp.server.mcpserver import MCPServer
@@ -50,6 +54,14 @@ mcp = MCPServer(
         "to real evidence; never a running commentary on who the user is. "
         "\n\n"
         "goldfish_status reports which backends are actually installed and healthy."
+        "\n\n"
+        "Chat apps (e.g. Claude Desktop's chat, any plan including free) don't "
+        "write transcripts to disk, so brain has nothing to search there. In that "
+        "case goldfish is the only memory: at the start of a conversation call "
+        "goldfish_recall (no args) to see what's known, save lasting facts with "
+        "goldfish_remember as they come up, and before a meaningful conversation "
+        "ends call goldfish_save_chat with a short summary so goldfish_search can "
+        "find it later."
     ),
 )
 
@@ -63,12 +75,48 @@ def goldfish_search(query: str, agent: Optional[str] = None, limit: int = 10) ->
 
     Every result is a citation (file, line span, sha256) verifiable with the
     underlying brain-mcp toolset — never a synthesized/paraphrased claim.
+
+    Also matches saved notes (including goldfish_save_chat summaries) under
+    "notes" — the only history available to chat apps that keep no transcripts.
+    """
+    try:
+        brain_api = _brain_api()
+        result = brain_api.search(query, agent=agent, limit=limit)
+    except Exception as e:  # noqa: BLE001 - no brain data must not hide note matches
+        result = {"error": f"transcript search unavailable: {e}"}
+    notes = _search_notes(query, limit)
+    if notes:
+        result["notes"] = notes
+    return result
+
+
+def _brain_api():
+    """brain's API, or RuntimeError when there's no transcript DB to read.
+
+    Chat-app-only installs (Claude Desktop) never create the DB, and brain's
+    read path waits up to 90s on a missing file as if it were locked.
     """
     try:
         from brain_mcp.recorder import api as brain_api
+        from brain_mcp.recorder.paths import db_path
     except ImportError:
-        return {"error": "brain-mcp not installed — see packages/brain in the goldfish repo"}
-    return brain_api.search(query, agent=agent, limit=limit)
+        raise RuntimeError("brain-mcp not installed — see packages/brain in the goldfish repo")
+    if not db_path().exists():
+        raise RuntimeError("no transcript history on this machine (only Claude Code / Codex sessions are recorded)")
+    return brain_api
+
+
+def _search_notes(query: str, limit: int) -> list[dict[str, Any]]:
+    """Notes containing every word of the query, newest first."""
+    words = query.lower().split()
+    hits = []
+    for n in _store.list():
+        text = f"{n.name} {n.description} {n.body}".lower()
+        if words and all(w in text for w in words):
+            hits.append(n)
+    hits.sort(key=lambda n: n.updated, reverse=True)
+    return [{"name": n.name, "type": n.type, "description": n.description,
+             "updated": n.updated, "body": n.body} for n in hits[:limit]]
 
 
 @mcp.tool(title="Recent session-compression summaries", annotations={"readOnlyHint": True})
@@ -96,6 +144,24 @@ def goldfish_remember(name: str, description: str, type: str, content: str) -> d
     note = Note(name=name, description=description, type=type, body=content)
     path = _store.write(note)
     return {"written": str(path)}
+
+
+@mcp.tool(title="Save a summary of this conversation")
+def goldfish_save_chat(title: str, summary: str) -> dict[str, Any]:
+    """Save a summary of the current conversation so future chats can find it.
+
+    For chat apps that don't record transcripts (e.g. Claude Desktop chat).
+    Call it before a meaningful conversation ends, or when the user asks to
+    save/remember this chat. `summary` should cover what was discussed,
+    decided, and left to do — enough to pick the thread back up later.
+    Coding agents with transcript capture (Claude Code, Codex) don't need it.
+    """
+    now = datetime.now(timezone.utc)
+    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:50] or "chat"
+    name = f"chat-{now:%Y%m%d-%H%M%S}-{slug}"
+    note = Note(name=name, description=title.replace("\n", " "), type="chat", body=summary)
+    path = _store.write(note)
+    return {"written": str(path), "name": name}
 
 
 @mcp.tool(title="Read or search curated memory notes", annotations={"readOnlyHint": True})
@@ -142,9 +208,9 @@ def goldfish_reflect(focus: Optional[str] = None, limit_per_query: int = 5) -> d
     moment — this is not a running personality commentary.
     """
     try:
-        from brain_mcp.recorder import api as brain_api
-    except ImportError:
-        return {"error": "brain-mcp not installed — see packages/brain in the goldfish repo"}
+        brain_api = _brain_api()
+    except RuntimeError as e:
+        return {"error": str(e)}
 
     queries = [focus] if focus else DEFAULT_REFLECTION_QUERIES
     results = []
@@ -190,8 +256,7 @@ def goldfish_status() -> dict[str, Any]:
     status: dict[str, Any] = {}
 
     try:
-        from brain_mcp.recorder import api as brain_api
-        status["brain"] = brain_api.health()
+        status["brain"] = _brain_api().health()
     except Exception as e:  # noqa: BLE001 - surface any backend failure as status, not a crash
         status["brain"] = {"ok": False, "error": str(e)}
 

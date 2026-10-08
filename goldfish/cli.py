@@ -12,7 +12,7 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("serve", help="run the goldfish MCP server (stdio)")
     sub.add_parser("status", help="print health across all three memory tiers")
 
-    MEMORY_TYPES = ("user", "feedback", "project", "reference", "insight")
+    from memory_notes.store import MEMORY_TYPES
 
     remember_p = sub.add_parser("remember", help="write a curated memory note")
     remember_p.add_argument("name")
