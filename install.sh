@@ -13,7 +13,7 @@ set -euo pipefail
 
 REPO_URL="https://github.com/lucasjamesss/goldfish.git"
 INSTALL_DIR="${GOLDFISH_HOME:-$HOME/.local/share/goldfish}"
-# Optional: pin to a tag or branch, e.g. GOLDFISH_REF=v0.1.0 (default: master).
+# Optional: pin to a tag, branch, or full commit hash, e.g. GOLDFISH_REF=<hash> (default: master).
 REF="${GOLDFISH_REF:-}"
 
 echo "== Goldfish installer =="
@@ -40,21 +40,18 @@ if ! command -v uv >/dev/null 2>&1; then
   export PATH="$HOME/.local/bin:$PATH"
 fi
 
+# Fetch exactly one ref (a tag, branch, or full commit hash) and check it out.
+# Works the same for a first install and an update.
+TARGET="${REF:-master}"
 if [ -d "$INSTALL_DIR/.git" ]; then
-  echo "updating existing install at $INSTALL_DIR"
-  if [ -n "$REF" ]; then
-    git -C "$INSTALL_DIR" fetch --depth 1 origin "$REF" && git -C "$INSTALL_DIR" checkout -q FETCH_HEAD
-  else
-    git -C "$INSTALL_DIR" pull --ff-only
-  fi
+  echo "updating existing install at $INSTALL_DIR (to $TARGET)"
 else
-  echo "cloning to $INSTALL_DIR"
-  if [ -n "$REF" ]; then
-    git clone --depth 1 --branch "$REF" "$REPO_URL" "$INSTALL_DIR"
-  else
-    git clone --depth 1 "$REPO_URL" "$INSTALL_DIR"
-  fi
+  echo "downloading to $INSTALL_DIR (version: $TARGET)"
+  git init -q "$INSTALL_DIR"
+  git -C "$INSTALL_DIR" remote add origin "$REPO_URL"
 fi
+git -C "$INSTALL_DIR" fetch --depth 1 origin "$TARGET"
+git -C "$INSTALL_DIR" checkout -q FETCH_HEAD
 
 cd "$INSTALL_DIR"
 echo "syncing dependencies..."
