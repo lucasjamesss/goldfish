@@ -102,10 +102,10 @@ Paste this repo's link to Claude Code and say "use this" — it'll run the
 installer itself. Or run it yourself:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/lucasjamesss/goldfish/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/lucasjamesss/goldfish/v0.1.0/install.sh | GOLDFISH_REF=v0.1.0 bash
 ```
 
-That one command clones goldfish, syncs its Python env, and registers it with
+That command is pinned to release `v0.1.0`, a fixed version that later edits to this repo can't change. It clones goldfish, syncs its Python env, and registers it with
 every Claude client it finds — restart Claude afterward and the tools are live.
 Re-running it is safe (idempotent).
 
@@ -134,7 +134,7 @@ database read-only if you've already installed it yourself; see
 ## Manual setup
 
 ```bash
-git clone https://github.com/lucasjamesss/goldfish.git
+git clone --branch v0.1.0 https://github.com/lucasjamesss/goldfish.git
 cd goldfish
 uv sync
 uv run --directory packages/brain brain-mcp install cc   # optional: transcript capture hooks
