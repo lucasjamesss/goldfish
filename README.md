@@ -1,5 +1,23 @@
 # 🐠 Goldfish
 
+## Start here (non-technical)
+
+**Easiest:** open Claude Code and paste this:
+
+> Install goldfish for me from https://github.com/lucasjamesss/goldfish. Run its install.sh, then confirm it worked by running goldfish_status.
+
+**Or by hand (Mac, with the Claude app opened once):** open Terminal (Cmd+Space, type "Terminal"), paste the install command from [Install](#install), press Enter, then quit Claude (Cmd+Q) and reopen it.
+
+**Check it worked:** in a new chat, ask "Run goldfish_status." Each tier should report healthy or tell you what is missing.
+
+**Where your data lives:** on your computer only. Curated notes are plain markdown files in `~/.goldfish/memory`. Nothing is uploaded by goldfish. Whatever you ask Claude to save goes into those files, so don't ask it to save passwords or card numbers.
+
+**Platforms:** macOS is supported. Linux works for Claude Code. Windows is not supported yet.
+
+**Remove it:** `bash ~/.local/share/goldfish/uninstall.sh`. This unregisters goldfish and removes the install. Your notes and history are never deleted.
+
+---
+
 Unified memory for AI coding agents. One MCP server, three tiers, no more
 guessing which tool remembers what:
 
@@ -165,7 +183,8 @@ Rough priority order, none of this started yet unless marked:
 
 - [x] One-command install (`install.sh` — clone, sync, hooks, `claude mcp add`)
 - [ ] `install.sh` also registers goldfish for Codex (`~/.codex/config.toml`), not just Claude Code
-- [ ] `goldfish uninstall` — clean removal mirroring `brain-mcp uninstall` (hooks, scheduler, MCP registration)
+- [x] `uninstall.sh` — clean removal (hooks, scheduler, Claude Code + desktop registration); notes and history are kept
+- [ ] `goldfish uninstall` as a CLI subcommand, so it works without the script
 - [ ] Package goldfish as an installable Claude Code plugin (marketplace `.mcp.json` + `hooks.json`) instead of raw MCP config editing
 - [ ] Optional claude-mem auto-install path in `install.sh`, for people who want `goldfish_context` populated out of the box
 - [ ] `goldfish_remember` commits `memory_notes/` to a local git repo automatically, so curated notes get real version history

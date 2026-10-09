@@ -13,8 +13,19 @@ set -euo pipefail
 
 REPO_URL="https://github.com/lucasjamesss/goldfish.git"
 INSTALL_DIR="${GOLDFISH_HOME:-$HOME/.local/share/goldfish}"
+# Optional: pin to a tag or branch, e.g. GOLDFISH_REF=v0.1.0 (default: master).
+REF="${GOLDFISH_REF:-}"
 
 echo "== Goldfish installer =="
+cat <<'INFO'
+This will:
+  1. Download goldfish to ~/.local/share/goldfish (or the folder in GOLDFISH_HOME)
+  2. Install its Python dependencies with uv (installing uv first if missing)
+  3. Register goldfish with Claude Code and/or the Claude desktop app, if found
+Your notes stay on this computer. To undo everything later, run:
+  bash ~/.local/share/goldfish/uninstall.sh
+INFO
+echo
 
 if ! command -v git >/dev/null 2>&1; then
   echo "git is required. A popup may appear asking to install Apple's developer tools —"
@@ -31,10 +42,18 @@ fi
 
 if [ -d "$INSTALL_DIR/.git" ]; then
   echo "updating existing install at $INSTALL_DIR"
-  git -C "$INSTALL_DIR" pull --ff-only
+  if [ -n "$REF" ]; then
+    git -C "$INSTALL_DIR" fetch --depth 1 origin "$REF" && git -C "$INSTALL_DIR" checkout -q FETCH_HEAD
+  else
+    git -C "$INSTALL_DIR" pull --ff-only
+  fi
 else
   echo "cloning to $INSTALL_DIR"
-  git clone --depth 1 "$REPO_URL" "$INSTALL_DIR"
+  if [ -n "$REF" ]; then
+    git clone --depth 1 --branch "$REF" "$REPO_URL" "$INSTALL_DIR"
+  else
+    git clone --depth 1 "$REPO_URL" "$INSTALL_DIR"
+  fi
 fi
 
 cd "$INSTALL_DIR"
@@ -74,6 +93,10 @@ fi
 cat <<'EOF'
 
 Done! Last step: fully quit Claude (Cmd+Q) and open it again.
+
+Then check it works: start a new chat and ask
+  "Run goldfish_status and tell me if each tier is healthy."
+If Claude can't find the tool, quit Claude fully and reopen it once more.
 
 Recommended for the Claude app: open Settings > Profile and paste this into
 the personal preferences box, so Claude uses its memory in every chat:
