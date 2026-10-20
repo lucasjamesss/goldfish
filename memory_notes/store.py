@@ -7,6 +7,12 @@ from pathlib import Path
 
 MEMORY_TYPES = ("user", "feedback", "project", "reference", "insight", "chat")
 
+# Types left out of MEMORY.md: it is loaded into every session, so only durable
+# facts belong there. Chat summaries stay searchable (goldfish_search /
+# goldfish_recall) and insights are aggregated in PERSONA.md instead.
+INDEX_EXCLUDED_TYPES = ("chat", "insight")
+PERSONA_MAX_INSIGHTS = 5
+
 _FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n?(.*)\Z", re.DOTALL)
 _LINK_RE = re.compile(r"\[\[([a-zA-Z0-9_-]+)\]\]")
 
@@ -88,7 +94,7 @@ class MemoryStore:
 
     Layout matches the convention already used by hand: one markdown file per
     note (frontmatter + body), a flat MEMORY.md index of one-line pointers
-    across every type, and PERSONA.md — the same idea specialized to
+    across durable types (not chat/insight), and PERSONA.md — the same idea specialized to
     type="insight" notes, but holding each one's full body rather than a
     one-liner, since that's the file meant to accumulate a real picture of
     the user over time rather than just point at where to look.
@@ -150,11 +156,14 @@ class MemoryStore:
     def _rebuild_index(self) -> None:
         lines = ["# Memory index", ""]
         for note in self.list():
+            if note.type in INDEX_EXCLUDED_TYPES:
+                continue
             lines.append(f"- [{note.name}]({note.path.name}) — {note.description}")
         self.index_path.write_text("\n".join(lines) + "\n")
 
     def _rebuild_persona(self) -> None:
-        insights = self.list(type="insight")
+        insights = sorted(self.list(type="insight"), key=lambda n: n.updated, reverse=True)
+        insights = insights[:PERSONA_MAX_INSIGHTS]
         lines = [PERSONA_HEADER]
         if not insights:
             lines.append("_Nothing recorded yet — see goldfish_reflect._")
